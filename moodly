@@ -1,0 +1,139 @@
+#!/usr/bin/python3
+
+import os
+import sys
+
+# import toml
+from datetime import datetime
+
+HOME_DIR = os.path.expanduser("~")
+MOODLY_DIR = HOME_DIR + "/.moodly_app"
+RECORD_FILE = MOODLY_DIR + "/record.tsv"
+CONFIG_FILE = MOODLY_DIR + "/config.toml"
+# print(MOODLY_DIR)
+
+# if not os.path.isfile(config_file):
+#     print("loading defaults")
+# else:
+#     parsed_toml = toml.loads(open(config_file, "r").read())
+#     print(parsed_toml)
+
+if not os.path.isdir(MOODLY_DIR):
+    print(f"moodly directory not found. trying to create it at {MOODLY_DIR}")
+    os.mkdir(MOODLY_DIR)
+
+if not os.path.isfile(RECORD_FILE):
+    print(f"no record file found. trying to create one at {RECORD_FILE}")
+    with open(RECORD_FILE, "w") as f:
+        f.write("date\ttime\tmood\tdescription\n")
+
+if len(sys.argv) == 2:
+    if sys.argv[1] == "dump":
+        with open(RECORD_FILE, "r") as f:
+            x = f.read().replace("\t", " "*8)
+            print(x)
+            exit()
+    else:
+        raise Exception("did not recognize that command")
+elif len(sys.argv) > 2:
+    raise Exception("too many arguments")
+
+record: str = ""
+
+
+def get_date() -> str:
+    default_date: str = datetime.now().strftime("%Y%m%d")
+    initial_input: str = input(f"date (default: {datetime.now().strftime('%Y%m%d')}): ")
+
+    if initial_input == "":
+        return default_date
+
+    return "".join(filter(str.isdigit, initial_input))
+
+
+def is_date(s: str) -> bool:
+    # cneck that date is a string of digits and is length YYYYMMDD == 8
+    if any([not c.isdigit() for c in s]):
+        return False
+
+    if not len(s) == 8:
+        return False
+
+    # we assume any year is possible. check bounds of month and day
+    return 0 < int(s[4:6]) <= 12 and 0 < int(s[6:8]) <= 31
+
+
+def get_time() -> str:
+    default_time: str = datetime.now().strftime("%H%M")
+    initial_input: str = input(f"time (default: {datetime.now().strftime('%H%M')}): ")
+
+    if initial_input == "":
+        return default_time
+
+    return "".join(filter(str.isdigit, initial_input))
+
+
+def is_time(s: str) -> bool:
+    # cneck that time is a string of digits and is length HHMM == 4
+    if any([not c.isdigit() for c in s]):
+        return False
+
+    if not len(s) == 4:
+        return False
+
+    # check bounds of hours and minutes
+    return int(s[0:2]) <= 24 and int(s[2:4]) <= 59
+
+
+def get_mood() -> str:
+    initial_input: str = input(f"mood (1-5): ")
+
+    return "".join(filter(str.isdigit, initial_input))
+
+
+def is_mood(s: str) -> bool:
+    # cneck that mood is a string of digits and is length 1
+    if any([not c.isdigit() for c in s]):
+        return False
+
+    if not len(s) == 1:
+        return False
+
+    # check bounds of mood
+    return 1 <= int(s) <= 5
+
+
+def get_descr() -> str:
+    initial_input: str = input(f"description (default: none): ")
+
+    return initial_input
+
+
+def is_descr(s: str) -> bool:
+    return ("\t" not in s) and ("\n" not in s)
+
+
+date: str = get_date()
+while not is_date(date):
+    print("reenter ", end="")
+    date = get_date()
+
+time: str = get_time()
+while not is_time(time):
+    print("reenter ", end="")
+    time = get_time()
+
+mood: str = get_mood()
+while not is_mood(mood):
+    print("reenter ", end="")
+    mood = get_mood()
+
+descr: str = get_descr()
+while not is_descr(descr):
+    print("reenter; no tabs or newlines in ", end="")
+    descr = get_descr()
+
+# get_date()
+with open(RECORD_FILE, "a") as f:
+    f.write(f"{date}\t{time}\t{mood}\t{descr}\n")
+    print(f"wrote mood record at {RECORD_FILE}")
