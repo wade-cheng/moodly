@@ -30,8 +30,9 @@ if not os.path.isfile(RECORD_FILE):
 if len(sys.argv) == 2:
     if sys.argv[1] == "dump":
         with open(RECORD_FILE, "r") as f:
-            x = f.read().replace("\t", " "*8)
-            print(x)
+            x = f.read().replace("\t", " "*8).split(maxsplit=1)
+            print(x[1])
+            print(x[0])
             exit()
     else:
         raise Exception("did not recognize that command")
