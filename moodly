@@ -113,28 +113,23 @@ def get_descr() -> str:
 def is_descr(s: str) -> bool:
     return ("\t" not in s) and ("\n" not in s)
 
+def validate(f, v, prompt="reenter ") -> str:
+    """
+    function f : () -> 'a 
+    validator v : 'a -> bool that returns whether f() is valid
 
-date: str = get_date()
-while not is_date(date):
-    print("reenter ", end="")
-    date = get_date()
+    repeatedly runs f(), returning when v(f()) == True.
+    """
+    ans = f()
+    while not v(ans):
+        print(prompt, end="")
+        ans = f()
 
-time: str = get_time()
-while not is_time(time):
-    print("reenter ", end="")
-    time = get_time()
+date = validate(get_date, is_date)
+time = validate(get_time, is_time)
+date = validate(get_moode, is_mood)
+date = validate(get_descr, is_descr, prompt="reenter; no tabs or newlines in ")
 
-mood: str = get_mood()
-while not is_mood(mood):
-    print("reenter ", end="")
-    mood = get_mood()
-
-descr: str = get_descr()
-while not is_descr(descr):
-    print("reenter; no tabs or newlines in ", end="")
-    descr = get_descr()
-
-# get_date()
 with open(RECORD_FILE, "a") as f:
     f.write(f"{date}\t{time}\t{mood}\t{descr}\n")
     print(f"wrote mood record at {RECORD_FILE}")
