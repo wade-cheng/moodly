@@ -127,7 +127,7 @@ def validate(f, v, prompt="reenter ") -> str:
 
 date = validate(get_date, is_date)
 time = validate(get_time, is_time)
-date = validate(get_moode, is_mood)
+date = validate(get_mood, is_mood)
 date = validate(get_descr, is_descr, prompt="reenter; no tabs or newlines in ")
 
 with open(RECORD_FILE, "a") as f:
