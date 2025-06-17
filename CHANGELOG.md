@@ -12,6 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - subcommands
   - `clean`
 
+## [2.0.0] - 2025-06-17
+
+### Fixed
+
+- dates are now saved as `%Y-%m-%d` instead of `%Y%m%d`
+- times are now saved as `%H:%M` instead of `%H%M`
+- manual time inputs no longer always fail
+- remove redundant `to_string`
+
 ## [1.1.0] - 2025-06-17
 
 ### Added

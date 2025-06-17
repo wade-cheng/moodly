@@ -191,7 +191,7 @@ pub fn record() -> Result<(), std::io::Error> {
             "date (default: {}): ",
             Local::now().date_naive().format(DATE_FMT_IN).to_string()
         ),
-        Some(Local::now().date_naive().format(DATE_FMT_IN).to_string()),
+        Some(Local::now().date_naive().format(DATE_FMT_OUT).to_string()),
         None,
         Some(parse_date),
     );
@@ -200,7 +200,7 @@ pub fn record() -> Result<(), std::io::Error> {
             "time (default: {}): ",
             Local::now().naive_local().format(TIME_FMT_IN).to_string()
         ),
-        Some(Local::now().naive_local().format(TIME_FMT_IN).to_string()),
+        Some(Local::now().naive_local().format(TIME_FMT_OUT).to_string()),
         None,
         Some(parse_time),
     );
@@ -222,7 +222,7 @@ fn parse_date(s: &str) -> Option<String> {
 }
 
 fn parse_time(s: &str) -> Option<String> {
-    let time = chrono::NaiveDate::parse_from_str(s, TIME_FMT_IN).ok()?;
+    let time = chrono::NaiveDateTime::parse_from_str(s, TIME_FMT_IN).ok()?;
     Some(time.format(TIME_FMT_OUT).to_string())
 }
 
@@ -264,7 +264,7 @@ pub fn user_input(
 
         // if we can parse the input, return the parsed input.
         if let Some(s) = parse(&ans) {
-            return s.to_string();
+            return s;
         }
 
         // if nothing worked, repeat
