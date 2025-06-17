@@ -1,27 +1,13 @@
-// use std::path::PathBuf;
-
 use std::process::exit;
 
 use clap::Parser;
-use moodly::{Cli, Commands};
+use moodly::Cli;
 
 fn main() {
     ctrlc::set_handler(|| exit(0)).expect("Error setting Ctrl-C handler");
 
-    let cli = Cli::parse();
-
-    if let Err(e) = moodly::record() {
+    if let Err(e) = Cli::parse().run() {
         println!("Encountered an error: {e}");
+        exit(1);
     }
-
-    // match &cli.command {
-    //     Some(Commands::Clean { force: _ }) => {
-    //         todo!()
-    //     }
-    //     None => {
-    //         if let Err(e) = moodly::record() {
-    //             println!("Encountered an error: {e}");
-    //         }
-    //     }
-    // }
 }

@@ -1,6 +1,10 @@
 use chrono::Local;
 use csv::Writer;
-use std::{fs::OpenOptions, io::Write, path::PathBuf};
+use std::{
+    fs::{File, OpenOptions},
+    io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+};
 
 /// The directory name moodly data is stored under.
 const MOODLY_DIR_NAME: &str = "moodly";
@@ -25,18 +29,125 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(version)]
 pub struct Cli {
-    // #[command(subcommand)]
-    // pub command: Option<Commands>,
+    #[command(subcommand)]
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// clears the current data csv (saves a backup)
-    Clean {
-        /// clears all data. maybe call this `all`?
-        #[arg(short, long)]
-        force: bool,
+    // /// Deletes current data csv (saves a backup)
+    // Clean {
+    //     /// Also delete all backups.
+    //     #[arg(short, long)]
+    //     include_backups: bool,
+    // },
+    /// Print the most recent few entries to stdout
+    Tail {
+        /// Number of entries to print
+        #[arg(short, default_value_t = 10)]
+        n: usize,
     },
+    /// Dump the entire mood recording csv file to stdout
+    ///
+    /// Consider paging the output, e.g. with `moodly dump | less`.
+    Dump,
+    /// Print the path to the moodly data directory
+    Where,
+}
+
+impl Cli {
+    pub fn run(&self) -> Result<(), std::io::Error> {
+        match &self.command {
+            // Some(Commands::Clean { include_backups: _ }) => {
+            //     todo!()
+            // }
+            Some(Commands::Tail { n }) => print_tail_buffered(data_dir()?.join(DATA_CSV_FNAME), *n),
+            Some(Commands::Dump) => print_head_buffered(data_dir()?.join(DATA_CSV_FNAME), None),
+            Some(Commands::Where) => {
+                println!("{}", data_dir()?.display().to_string());
+                Ok(())
+            }
+            None => record(),
+        }
+    }
+}
+
+fn print_tail_buffered<P>(path: P, tailsize: usize) -> Result<(), std::io::Error>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+
+    // we seem to need to get file size from seek because we use this number
+    // to seek later. using File metadata causes problems with seeking before 0.
+    // (maybe metadata records size on disk instead of bytes used. haven't checked.)
+    let file_size = reader.seek(SeekFrom::End(0))?;
+    if file_size == 0 {
+        return Ok(());
+    }
+
+    // Read chunks backwards to find the last n lines
+    let chunk_size = 0x2000;
+    let mut lines_found = 0;
+    let mut position = file_size;
+    let mut all_content = Vec::new();
+
+    while position > 0 && lines_found < tailsize {
+        let read_size = std::cmp::min(chunk_size, position);
+
+        position = reader.seek(SeekFrom::Current(-1 * read_size as i64))?;
+        let mut chunk = vec![0; read_size as usize];
+        reader.read_exact(&mut chunk)?;
+
+        // Count newlines in this chunk
+        let newlines_in_chunk = chunk.iter().filter(|&&b| b == b'\n').count();
+
+        // Prepend chunk to our content
+        // TODO: this is stupid and should be changed.
+        chunk.extend(all_content);
+        all_content = chunk;
+
+        lines_found += newlines_in_chunk;
+    }
+
+    // Convert to string and split into lines
+    let content = String::from_utf8_lossy(&all_content);
+    let all_lines: Vec<&str> = content.lines().collect();
+
+    // Take the last n lines
+    let start_idx = if all_lines.len() > tailsize {
+        all_lines.len() - tailsize
+    } else {
+        0
+    };
+
+    for line in &all_lines[start_idx..] {
+        println!("{}", line);
+    }
+
+    Ok(())
+}
+
+fn print_head_buffered<P>(path: P, headsize: Option<usize>) -> Result<(), std::io::Error>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(path)?;
+    let stdout = io::stdout();
+    let mut writer = BufWriter::new(stdout.lock());
+
+    for (i, line) in BufReader::new(file).lines().enumerate() {
+        if let Some(l) = headsize {
+            if l == i {
+                break;
+            }
+        }
+        writeln!(writer, "{}", line?)?;
+    }
+
+    writer.flush()?;
+    Ok(())
 }
 
 /// Try to get the data directory, creating it if it doesn't exist
@@ -160,88 +271,3 @@ pub fn user_input(
         print!("{}", repeat_prompt);
     }
 }
-
-// fn get_date() -> String {
-//     let mut ans = String::new();
-//     std::io::stdin().read_line(&mut ans);
-//     ans.trim();
-//     default_date: str = datetime.now().strftime("%Y%m%d")
-//     let initial_input = input(f"date (default: {datetime.now().strftime('%Y%m%d')}): ")
-
-//     if initial_input == "":
-//         return default_date
-
-//     return "".join(filter(str.isdigit, initial_input))
-// }
-
-// def is_date(s: str) -> bool:
-//     # cneck that date is a string of digits and is length YYYYMMDD == 8
-//     if any([not c.isdigit() for c in s]):
-//         return False
-
-//     if not len(s) == 8:
-//         return False
-
-//     # we assume any year is possible. check bounds of month and day
-//     return 0 < int(s[4:6]) <= 12 and 0 < int(s[6:8]) <= 31
-
-// def get_time() -> str:
-//     default_time: str = datetime.now().strftime("%H%M")
-//     initial_input: str = input(f"time (default: {datetime.now().strftime('%H%M')}): ")
-
-//     if initial_input == "":
-//         return default_time
-
-//     return "".join(filter(str.isdigit, initial_input))
-
-// def is_time(s: str) -> bool:
-//     # cneck that time is a string of digits and is length HHMM == 4
-//     if any([not c.isdigit() for c in s]):
-//         return False
-
-//     if not len(s) == 4:
-//         return False
-
-//     # check bounds of hours and minutes
-//     return int(s[0:2]) <= 24 and int(s[2:4]) <= 59
-
-// def get_mood() -> str:
-//     initial_input: str = input(f"mood (1-5): ")
-
-//     return "".join(filter(str.isdigit, initial_input))
-
-// def is_mood(s: str) -> bool:
-//     # cneck that mood is a string of digits and is length 1
-//     if any([not c.isdigit() for c in s]):
-//         return False
-
-//     if not len(s) == 1:
-//         return False
-
-//     # check bounds of mood
-//     return 1 <= int(s) <= 5
-
-// def get_descr() -> str:
-//     initial_input: str = input(f"description (default: none): ")
-
-//     return initial_input
-
-// def is_descr(s: str) -> bool:
-//     return ("\t" not in s) and ("\n" not in s)
-
-// def validate(f, v, prompt="reenter ") -> str:
-//     """
-//     function f : () -> 'a
-//     validator v : 'a -> bool that returns whether f() is valid
-
-//     repeatedly runs f(), returning when v(f()) == True.
-//     """
-//     ans = f()
-//     while not v(ans):
-//         print(prompt, end="")
-//         ans = f()
-
-// date = validate(get_date, is_date)
-// time = validate(get_time, is_time)
-// date = validate(get_moode, is_mood)
-// date = validate(get_descr, is_descr, prompt="reenter; no tabs or newlines in ")
